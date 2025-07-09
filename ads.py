@@ -57,7 +57,7 @@ def fetch_ads_data(customer_id):
     for batch in response:
         for row in batch.results:
             rows.append((
-                customer_id,  # tambahkan customer_id agar bisa dibedakan di DB
+                customer_id,  
                 str(row.segments.date),
                 row.campaign.id,
                 row.campaign.name,
