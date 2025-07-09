@@ -14,18 +14,24 @@ ads_config = {
     "customer_id": os.getenv("customer_id")
 }
 
+# id customer loop
+customer_ids = [cid.strip() for cid in os.getenv("customer_id", "").split(",") if cid.strip()]
+
 # inisialisasi klien google ads
-client = GoogleAdsClient.load_from_dict({
-    "developer_token": ads_config["developer_token"],
-    "client_id": ads_config["client_id"],
-    "client_secret": ads_config["client_secret"],
-    "refresh_token": ads_config["refresh_token"],
-    "login_customer_id": ads_config["customer_id"],
-    "use_proto_plus": True  
-})
+def get_google_ads_client():
+    return GoogleAdsClient.load_from_dict({
+        "developer_token": ads_config["developer_token"],
+        "client_id": ads_config["client_id"],
+        "client_secret": ads_config["client_secret"],
+        "refresh_token": ads_config["refresh_token"],
+        "login_customer_id": os.getenv("mcc_id"), 
+        "use_proto_plus": True  
+    })
 
 # query ambil data
-def fetch_ads_data():
+def fetch_ads_data(customer_id):
+    client = get_google_ads_client()
+
     query = """
     select
       segments.date,
@@ -44,26 +50,37 @@ def fetch_ads_data():
     where segments.date during yesterday
     """
 
-    # running query
     service = client.get_service("GoogleAdsService")
-    response = service.search_stream(customer_id=ads_config["customer_id"], query=query)
+    response = service.search_stream(customer_id=customer_id, query=query)
 
-    # memproses respon
     rows = []
     for batch in response:
         for row in batch.results:
             rows.append((
-            str(row.segments.date),
-            row.campaign.id,
-            row.campaign.name,
-            row.ad_group.name,
-            int(row.metrics.impressions),
-            int(row.metrics.clicks),
-            float(row.metrics.conversions) if row.metrics.conversions is not None else 0,
-            row.ad_group_ad.ad_strength.name,
-            float(row.metrics.all_conversions) if row.metrics.all_conversions is not None else 0,
-            float(row.metrics.interaction_rate) if row.metrics.interaction_rate is not None else 0,
-            json.dumps(list(row.ad_group_ad.ad.final_urls)) if row.ad_group_ad.ad.final_urls else '[]',
-            int(row.metrics.cost_micros)
-        ))
+                customer_id,  # tambahkan customer_id agar bisa dibedakan di DB
+                str(row.segments.date),
+                row.campaign.id,
+                row.campaign.name,
+                row.ad_group.name,
+                int(row.metrics.impressions),
+                int(row.metrics.clicks),
+                float(row.metrics.conversions or 0),
+                row.ad_group_ad.ad_strength.name,
+                float(row.metrics.all_conversions or 0),
+                float(row.metrics.interaction_rate or 0),
+                json.dumps(list(row.ad_group_ad.ad.final_urls)) if row.ad_group_ad.ad.final_urls else '[]',
+                int(row.metrics.cost_micros)
+            ))
     return rows
+
+# looping klien google ads
+def fetch_all_ads_data():
+    all_rows = []
+    for cid in customer_ids:
+        try:
+            print(f"Fetching data for customer {cid}")
+            rows = fetch_ads_data(cid)
+            all_rows.extend(rows)
+        except Exception as e:
+            print(f"❌ Failed to fetch data for {cid}: {e}")
+    return all_rows

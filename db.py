@@ -19,13 +19,20 @@ def insert_to_postgres(rows):
     cur = conn.cursor()
     cur.executemany("""
         insert into gads_ad_group_ad_legacy_v2 (
-            segments_date, campaign_id, campaign_name, ad_group_name,
-            metrics_impressions, metrics_clicks, metrics_conversions,
-            ad_group_ad_ad_strength, metrics_all_conversions,
-            metrics_interaction_rate, ad_group_ad_ad_final_urls,
-            metrics_cost_micros
-        ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        on conflict do nothing;
+        customer_id,
+        segments_date,
+        campaign_id,
+        campaign_name,
+        ad_group_name,
+        metrics_impressions,
+        metrics_clicks,
+        metrics_conversions,
+        ad_group_ad_ad_strength,
+        metrics_all_conversions,
+        metrics_interaction_rate,
+        ad_group_ad_ad_final_urls,
+        metrics_cost_micros
+    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, rows)
     conn.commit()
     cur.close()
